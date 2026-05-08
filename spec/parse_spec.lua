@@ -106,3 +106,37 @@ describe("parse.parse_ssh_argv (arg-consuming flags)", function()
     assert.is_nil(parse.parse_ssh_argv({ "ssh", "-p" }))
   end)
 end)
+
+describe("parse.parse_ssh_argv (boolean / combined / stacked)", function()
+  it("ssh -tt host htop (boolean flag, then host, then remote cmd)", function()
+    local r = parse.parse_ssh_argv({ "ssh", "-tt", "host", "htop" })
+    assert.are.same(
+      { destination = "host", replay_flags = { "-tt" } },
+      r
+    )
+  end)
+
+  it("ssh -vvv host", function()
+    local r = parse.parse_ssh_argv({ "ssh", "-vvv", "host" })
+    assert.are.same(
+      { destination = "host", replay_flags = { "-vvv" } },
+      r
+    )
+  end)
+
+  it("ssh -oPort=22 host (combined flag=value, single token)", function()
+    local r = parse.parse_ssh_argv({ "ssh", "-oPort=22", "host" })
+    assert.are.same(
+      { destination = "host", replay_flags = { "-oPort=22" } },
+      r
+    )
+  end)
+
+  it("ssh -A -C host (stacked booleans across tokens)", function()
+    local r = parse.parse_ssh_argv({ "ssh", "-A", "-C", "host" })
+    assert.are.same(
+      { destination = "host", replay_flags = { "-A", "-C" } },
+      r
+    )
+  end)
+end)
