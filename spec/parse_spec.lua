@@ -148,3 +148,25 @@ describe("parse.parse_ssh_argv (boolean / combined / stacked)", function()
     )
   end)
 end)
+
+describe("parse.escape_remote_path", function()
+  it("accepts our own generated names", function()
+    local r, err = parse.escape_remote_path("/tmp/wezterm-paste-a3f29c1d.png")
+    assert.are.equal("/tmp/wezterm-paste-a3f29c1d.png", r)
+    assert.is_nil(err)
+  end)
+
+  it("rejects shell metacharacters", function()
+    for _, bad in ipairs({
+      "/tmp/foo;rm -rf /",
+      "/tmp/foo`whoami`",
+      "/tmp/foo$(id)",
+      "/tmp/foo|cat",
+      "/tmp/foo\nbar",
+    }) do
+      local r, err = parse.escape_remote_path(bad)
+      assert.is_nil(r, "should reject: " .. bad)
+      assert.is_string(err)
+    end
+  end)
+end)
