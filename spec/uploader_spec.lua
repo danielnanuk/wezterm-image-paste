@@ -107,4 +107,45 @@ describe("uploader.run", function()
     assert.is_nil(rp)
     assert.is_truthy(err:match("remote path rejected"))
   end)
+
+  it("preserves user replay_flags ordering before our CONTROL_FLAGS", function()
+    -- OpenSSH "first wins" for -o; if a user set -o ControlMaster=no in
+    -- their interactive ssh, we want THEIR value to win on the precheck/scp
+    -- side too (multiplexing may be intentionally disabled for that host).
+    local user_target = {
+      destination = "host",
+      replay_flags = { "-o", "ControlMaster=no" },
+    }
+    local seen
+    run._impl = function(argv)
+      seen = argv
+      return { success = false, exit_code = 1, stdout = "", stderr = "" }
+    end
+    -- precheck only — we just want the argv shape
+    pcall(uploader.run, user_target, "spec/fixtures/hello.bin", "/tmp")
+
+    -- Find positions of the user's =no and our =auto. User's must come first.
+    local pos_user_no, pos_our_auto
+    for i, v in ipairs(seen) do
+      if v == "ControlMaster=no" then pos_user_no = i end
+      if v == "ControlMaster=auto" then pos_our_auto = i end
+    end
+    assert.is_number(pos_user_no, "user's ControlMaster=no must appear in argv")
+    assert.is_number(pos_our_auto, "our ControlMaster=auto must also appear (we don't suppress)")
+    assert.is_true(pos_user_no < pos_our_auto,
+      "user's flag must precede ours so OpenSSH first-wins picks user's")
+  end)
+
+  it("uses content-addressed sha1[:8] in the filename", function()
+    run._impl = function(argv)
+      if argv[1] == "ssh" then
+        return { success = false, exit_code = 1, stdout = "", stderr = "" }
+      end
+      return { success = true, exit_code = 0, stdout = "", stderr = "" }
+    end
+    local rp = uploader.run(target, "spec/fixtures/hello.bin", "/tmp")
+    local hash_in_path = rp:match("wezterm%-paste%-([0-9a-f]+)%.png$")
+    local expected = parse.hash_filename("spec/fixtures/hello.bin")
+    assert.are.equal(expected, hash_in_path)
+  end)
 end)

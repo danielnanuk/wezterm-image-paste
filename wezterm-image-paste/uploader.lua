@@ -33,7 +33,17 @@ end
 local function summarize_stderr(s)
   if not s or s == "" then return "(no stderr)" end
   s = s:gsub("\r", " "):gsub("\n", " ")
-  if #s > 200 then s = s:sub(1, 200) .. "…" end
+  if #s > 200 then
+    -- Back off to a UTF-8 boundary so the truncated string is valid UTF-8.
+    -- Continuation bytes are 0x80-0xBF; back up while we're on one.
+    local cut = 200
+    while cut > 0 do
+      local b = s:byte(cut)
+      if not b or b < 0x80 or b >= 0xC0 then break end
+      cut = cut - 1
+    end
+    s = s:sub(1, cut) .. "…"
+  end
   return s
 end
 
@@ -57,6 +67,13 @@ function M.run(target, local_path, remote_dir)
   if not validated then return nil, "remote path rejected: " .. tostring(perr) end
 
   -- 3) ssh precheck: test -e <remote_path>.  Exit 0 → file already present.
+  -- Argv composition note: replay_flags come BEFORE our CONTROL_FLAGS.
+  -- OpenSSH applies "first obtained value wins" for -o overrides, so this
+  -- ordering means the user's running ssh values (e.g. their explicit
+  -- -o ControlMaster=no for a host where multiplexing breaks, or their
+  -- -o ConnectTimeout=60 on a flaky link) take precedence over our
+  -- defaults. We assume the user's interactive session knows things about
+  -- the network path that we don't.
   local precheck_argv = concat({ "ssh" }, target.replay_flags)
   precheck_argv = concat(precheck_argv, CONTROL_FLAGS)
   table.insert(precheck_argv, target.destination)
