@@ -15,7 +15,9 @@ end
 function M.use_wezterm(wezterm)
   M._toast_impl = function(window, msg, level)
     if window and window.toast_notification then
-      window:toast_notification("wezterm-image-paste", msg, nil, 4000)
+      -- Errors and warnings get more time on screen so users can read them.
+      local duration = (level == "error" or level == "warn") and 6000 or 4000
+      window:toast_notification("wezterm-image-paste", msg, nil, duration)
     end
   end
   M._log_impl = function(level, msg)

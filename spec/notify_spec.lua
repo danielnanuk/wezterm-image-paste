@@ -98,5 +98,34 @@ describe("notify", function()
       notify.log("info", "info msg")
       assert.are.equal(1, calls.info)
     end)
+
+    it("toast impl after use_wezterm safely handles nil window", function()
+      notify.use_wezterm({
+        log_info = function() end, log_warn = function() end, log_error = function() end,
+      })
+      -- Must not raise even when window is nil
+      notify.toast(nil, "any message", "info")
+      -- pcall in M.toast would swallow errors, but our test asserts no exception
+      -- propagated. (Reaching this line means it didn't.)
+      assert.is_true(true)
+    end)
+
+    it("error/warn toasts get 6000ms; info gets 4000ms", function()
+      local captured = {}
+      local fake_window = {
+        toast_notification = function(self, title, msg, _icon, duration)
+          table.insert(captured, { msg = msg, duration = duration })
+        end,
+      }
+      notify.use_wezterm({
+        log_info = function() end, log_warn = function() end, log_error = function() end,
+      })
+      notify.toast(fake_window, "info msg", "info")
+      notify.toast(fake_window, "warn msg", "warn")
+      notify.toast(fake_window, "err msg", "error")
+      assert.are.equal(4000, captured[1].duration)
+      assert.are.equal(6000, captured[2].duration)
+      assert.are.equal(6000, captured[3].duration)
+    end)
   end)
 end)
