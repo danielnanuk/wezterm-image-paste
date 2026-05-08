@@ -6,22 +6,26 @@ local M = {}
 --   { kind = "image",            local_path = "<path>" }
 --   { kind = "text" }
 --   { kind = "empty" }
---   { kind = "missing_pngpaste", stderr = "<message>" }
+--   { kind = "missing_pngpaste", stderr = "<text>" }
+--   { kind = "probe_failed",     stderr = "<text>" }
 function M.probe()
   local info = run.exec({ "osascript", "-e", "clipboard info" })
-  if not info.success then return { kind = "empty" } end
+  if not info.success then
+    return { kind = "probe_failed", stderr = info.stderr }
+  end
   local out = info.stdout or ""
   if out == "" then return { kind = "empty" } end
   if not out:match("\xc2\xab" .. "class PNGf" .. "\xc2\xbb")
     and not out:match("\xc2\xab" .. "class TIFF" .. "\xc2\xbb") then
     return { kind = "text" }
   end
-  -- Image present. Try pngpaste.
-  local tmpdir = os.getenv("TMPDIR") or "/tmp"
-  -- Use a unique name to allow concurrent pastes.
-  local local_path = string.format("%swezterm-paste-%d-%d.png",
-    tmpdir:sub(-1) == "/" and tmpdir or (tmpdir .. "/"),
-    os.time(), math.random(100000, 999999))
+  -- Image present. Generate a guaranteed-unique tempfile path.
+  -- os.tmpname() returns an OS-unique path under TMPDIR (e.g. /tmp/lua_XXXXXX).
+  -- We append .png because pngpaste cares about the suffix.
+  -- A side effect: os.tmpname() on glibc actually creates the (empty) file at
+  -- the bare path; that file is harmless, will be overwritten by pngpaste at
+  -- the .png path, and macOS reaps both via its TMPDIR sweep policy.
+  local local_path = os.tmpname() .. ".png"
   local r = run.exec({ "pngpaste", local_path })
   if not r.success then
     return { kind = "missing_pngpaste", stderr = r.stderr }
