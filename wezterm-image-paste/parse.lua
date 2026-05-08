@@ -38,4 +38,48 @@ function M.hash_filename(path)
   return hex:sub(1, 8):lower()
 end
 
+-- Flag classifier sets. Updated in subsequent tasks.
+local ARG_CONSUMING_FLAGS = {
+  ["-b"]=true, ["-c"]=true, ["-D"]=true, ["-E"]=true, ["-e"]=true,
+  ["-F"]=true, ["-I"]=true, ["-i"]=true, ["-J"]=true, ["-L"]=true,
+  ["-l"]=true, ["-m"]=true, ["-O"]=true, ["-o"]=true, ["-p"]=true,
+  ["-Q"]=true, ["-R"]=true, ["-S"]=true, ["-W"]=true, ["-w"]=true,
+}
+
+local function basename(path)
+  return (path:match("([^/]+)$")) or path
+end
+
+-- parse_ssh_argv(argv) -> {destination, replay_flags} | nil
+function M.parse_ssh_argv(argv)
+  if not argv or #argv == 0 then return nil end
+  if basename(argv[1]) ~= "ssh" then return nil end
+
+  local replay = {}
+  local i = 2
+  while i <= #argv do
+    local tok = argv[i]
+    if tok == "--" then
+      -- everything after is positional; first one is destination
+      i = i + 1
+      if i > #argv then return nil end
+      return { destination = argv[i], replay_flags = replay }
+    elseif ARG_CONSUMING_FLAGS[tok] then
+      local val = argv[i + 1]
+      if not val then return nil end
+      table.insert(replay, tok)
+      table.insert(replay, val)
+      i = i + 2
+    elseif tok:sub(1, 1) == "-" then
+      -- bool flag (handled fully in Task 5); for now keep it
+      table.insert(replay, tok)
+      i = i + 1
+    else
+      -- first non-flag token is destination
+      return { destination = tok, replay_flags = replay }
+    end
+  end
+  return nil  -- never found a destination
+end
+
 return M
