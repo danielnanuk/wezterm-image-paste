@@ -1,3 +1,20 @@
+-- wezterm-image-paste/run.lua
+--
+-- Subprocess execution wrapper. The single trust boundary for shell-out
+-- in this project; every other module routes through M.exec(argv).
+--
+-- Returned table shape:
+--   { success: bool, exit_code: number, stdout: string, stderr: string }
+--
+-- IMPORTANT: when running INSIDE WezTerm, exit_code is informational only.
+-- wezterm.run_child_process(argv) does not expose the real exit code, so
+-- M.use_wezterm sets exit_code to 0 on success and 1 on failure regardless
+-- of the actual exit value. Callers MUST branch on `success` (and read
+-- `stderr` for diagnostics), not on exit_code values.
+--
+-- Outside WezTerm (i.e. under busted), the default _impl uses os.execute
+-- + tempfile redirection and DOES surface the real exit code.
+
 local M = {}
 
 -- posix_shell_quote: wraps a string in single quotes with correct escaping.
@@ -59,7 +76,7 @@ function M.use_wezterm(wezterm)
     local ok, stdout, stderr = wezterm.run_child_process(argv)
     return {
       success = ok,
-      exit_code = ok and 0 or 1,  -- wezterm API does not surface real exit code
+      exit_code = ok and 0 or 1,
       stdout = stdout or "",
       stderr = stderr or "",
     }

@@ -24,4 +24,14 @@ describe("run.exec", function()
     assert.are.equal("fake", r.stdout)
     run._impl = original
   end)
+
+  it("does not shell-inject through hostile argv", function()
+    -- If posix_shell_quote regresses to string.format('%q', ...) or
+    -- naive concatenation, this test will execute /bin/false (or worse)
+    -- and we'll see the command fail (r.success == false).
+    local hostile = "a';/bin/false;echo HACKED;'"
+    local r = run.exec({ "/bin/sh", "-c", "printf '[%s]' \"$1\"", "_", hostile })
+    assert.is_true(r.success, "shell command must succeed: stderr=" .. (r.stderr or ""))
+    assert.are.equal("[" .. hostile .. "]", r.stdout)
+  end)
 end)
