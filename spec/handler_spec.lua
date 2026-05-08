@@ -108,7 +108,7 @@ describe("handler.handle_paste (non-ssh image fallback)", function()
     assert.is_truthy(toasted and toasted:find("📎"))
   end)
 
-  it("returns ssh_fail outcome when save_to fails", function()
+  it("returns fallback_failed outcome when save_to fails", function()
     local toasted, toast_level
     saved = stub_all({
       probe = function() return { kind = "image", local_path = "/tmp/x.png" } end,
@@ -118,7 +118,7 @@ describe("handler.handle_paste (non-ssh image fallback)", function()
       toast = function(_, msg, level) toasted = msg; toast_level = level end,
     })
     local r = handler.handle_paste({}, {}, { local_fallback_dir = "/tmp/fallback" })
-    assert.are.equal("ssh_fail", r.outcome)
+    assert.are.equal("fallback_failed", r.outcome)
     assert.are.equal("disk full", r.err)
     assert.are.equal("error", toast_level)
   end)

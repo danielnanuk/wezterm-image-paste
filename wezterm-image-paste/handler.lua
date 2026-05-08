@@ -18,6 +18,7 @@ local DEFAULTS = {
 --   { outcome = "missing_pngpaste" }
 --   { outcome = "probe_failed",      err = ... }
 --   { outcome = "ssh_fail",          err = ... }
+--   { outcome = "fallback_failed",   err = ... }   -- non-SSH save failed
 --   { outcome = "non_ssh_image" }    -- handled inside via fallback (Task 14)
 function M.handle_paste(window, pane, opts)
   opts = opts or {}
@@ -47,8 +48,9 @@ function M.handle_paste(window, pane, opts)
     require("wezterm-image-paste.run").exec({ "mkdir", "-p", fallback_dir })
     local r = clipboard.save_to(local_path)
     if not r.success then
-      notify.toast(window, "✗ 保存到本地失败: " .. (r.stderr or ""), "error")
-      return { outcome = "ssh_fail", err = r.stderr }
+      local err = r.stderr or ""
+      notify.toast(window, "✗ 保存到本地失败: " .. err, "error")
+      return { outcome = "fallback_failed", err = err }
     end
     clipboard.write(local_path)
     notify.toast(window, "📎 非 SSH 会话,图片已存到 " .. fallback_dir .. ",路径已复制", "info")
