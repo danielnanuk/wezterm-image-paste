@@ -38,7 +38,12 @@ function M.hash_filename(path)
   return hex:sub(1, 8):lower()
 end
 
--- Flag classifier sets. Updated in subsequent tasks.
+-- Single-letter ssh options that consume a separate following argv token.
+-- Fused forms like `-p22` and `-oKEY=VALUE` are intentionally NOT listed
+-- here as their own keys: they pass through the generic "-" boolean branch
+-- below as a single preserved token, which is exactly what `ssh -G` and
+-- `scp` accept on replay. If you "refine" the parser to split fused forms,
+-- add a regression test for `-p22` first (see spec/parse_spec.lua).
 local ARG_CONSUMING_FLAGS = {
   ["-b"]=true, ["-c"]=true, ["-D"]=true, ["-E"]=true, ["-e"]=true,
   ["-F"]=true, ["-I"]=true, ["-i"]=true, ["-J"]=true, ["-L"]=true,

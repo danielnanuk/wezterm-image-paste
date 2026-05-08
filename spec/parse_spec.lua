@@ -139,4 +139,12 @@ describe("parse.parse_ssh_argv (boolean / combined / stacked)", function()
       r
     )
   end)
+
+  it("ssh -p22 host (fused short-option-with-value, no =)", function()
+    local r = parse.parse_ssh_argv({ "ssh", "-p22", "host" })
+    assert.are.same(
+      { destination = "host", replay_flags = { "-p22" } },
+      r
+    )
+  end)
 end)
