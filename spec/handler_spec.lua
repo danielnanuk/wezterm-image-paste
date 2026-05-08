@@ -62,3 +62,27 @@ describe("handler.handle_paste (happy path)", function()
     assert.is_truthy(toasted:find("📎"))
   end)
 end)
+
+describe("handler.handle_paste (passthrough)", function()
+  local saved
+
+  after_each(function()
+    if saved then restore(saved); saved = nil end
+  end)
+
+  it("returns passthrough for text clipboard", function()
+    saved = stub_all({
+      probe = function() return { kind = "text" } end,
+    })
+    local r = handler.handle_paste({}, {}, {})
+    assert.are.equal("passthrough", r.outcome)
+  end)
+
+  it("returns passthrough for empty clipboard", function()
+    saved = stub_all({
+      probe = function() return { kind = "empty" } end,
+    })
+    local r = handler.handle_paste({}, {}, {})
+    assert.are.equal("passthrough", r.outcome)
+  end)
+end)
