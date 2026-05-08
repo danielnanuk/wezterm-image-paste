@@ -3,7 +3,7 @@ local parse = require("wezterm-image-paste.parse")
 local M = {}
 
 local function basename(path)
-  return (path or ""):match("([^/]+)$") or path or ""
+  return (path or ""):match("([^/]+)$") or ""
 end
 
 -- Depth-first search for the first process whose basename is exactly "ssh".

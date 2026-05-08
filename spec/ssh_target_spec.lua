@@ -67,3 +67,26 @@ describe("ssh_target.detect", function()
     assert.are.same({ destination = "host", replay_flags = {} }, r)
   end)
 end)
+
+describe("ssh_target.detect_from_pane", function()
+  local function proc(name, argv, children)
+    return { name = name, argv = argv, children = children or {} }
+  end
+
+  it("dispatches to detect using a pane object's :get_foreground_process_info()", function()
+    local tree = proc("zsh", { "zsh" }, { proc("ssh", { "ssh", "host" }) })
+    local fake_pane = {
+      get_foreground_process_info = function(self) return tree end,
+    }
+    local r = ssh_target.detect_from_pane(fake_pane)
+    assert.are.same({ destination = "host", replay_flags = {} }, r)
+  end)
+
+  it("returns nil for nil pane", function()
+    assert.is_nil(ssh_target.detect_from_pane(nil))
+  end)
+
+  it("returns nil if pane lacks get_foreground_process_info", function()
+    assert.is_nil(ssh_target.detect_from_pane({}))
+  end)
+end)
