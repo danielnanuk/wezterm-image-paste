@@ -1,0 +1,28 @@
+local parse = require("wezterm-image-paste.parse")
+
+describe("parse.hash_filename", function()
+  it("returns an 8-char lowercase hex string", function()
+    local h = parse.hash_filename("spec/fixtures/hello.bin")
+    assert.is_string(h)
+    assert.are.equal(8, #h)
+    assert.is_truthy(h:match("^[0-9a-f]+$"))
+  end)
+
+  it("is deterministic for the same content", function()
+    local h1 = parse.hash_filename("spec/fixtures/hello.bin")
+    local h2 = parse.hash_filename("spec/fixtures/hello.bin")
+    assert.are.equal(h1, h2)
+  end)
+
+  it("differs for different content", function()
+    local h1 = parse.hash_filename("spec/fixtures/hello.bin")
+    local h2 = parse.hash_filename("spec/fixtures/empty.bin")
+    assert.are_not.equal(h1, h2)
+  end)
+
+  it("returns nil for missing file", function()
+    local h, err = parse.hash_filename("spec/fixtures/does-not-exist.bin")
+    assert.is_nil(h)
+    assert.is_string(err)
+  end)
+end)
