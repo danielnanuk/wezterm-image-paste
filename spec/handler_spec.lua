@@ -36,21 +36,29 @@ local function restore(saved)
 end
 
 describe("handler.handle_paste (happy path)", function()
+  local saved
+
+  after_each(function()
+    if saved then restore(saved); saved = nil end
+  end)
+
   it("upload + clipboard rewrite when image + ssh pane", function()
-    local written
-    local saved = stub_all({
+    local written, toasted
+    saved = stub_all({
       probe = function() return { kind = "image", local_path = "/tmp/x.png" } end,
       detect = function() return { destination = "root@host", replay_flags = {} } end,
       upload = function(target, local_path, remote_dir)
         return "/tmp/wezterm-paste-aaaaaaaa.png"
       end,
       write = function(text) written = text end,
+      toast = function(_, msg) toasted = msg end,
     })
 
     local result = handler.handle_paste({}, {}, { remote_dir = "/tmp" })
 
     assert.are.equal("uploaded", result.outcome)
     assert.are.equal("/tmp/wezterm-paste-aaaaaaaa.png", written)
-    restore(saved)
+    assert.is_not_nil(toasted)
+    assert.is_truthy(toasted:find("📎"))
   end)
 end)

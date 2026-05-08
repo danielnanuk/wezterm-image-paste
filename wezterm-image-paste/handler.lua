@@ -7,13 +7,13 @@ local M = {}
 
 local DEFAULTS = {
   remote_dir = "/tmp",
-  local_fallback_dir = os.getenv("HOME") .. "/Downloads",
+  local_fallback_dir = (os.getenv("HOME") or "/tmp") .. "/Downloads",
   timeout_seconds = 10,
 }
 
 -- Returns one of:
 --   { outcome = "uploaded",          remote_path = ... }
---   { outcome = "fallback_local",    local_path = ... }
+--   { outcome = "fallback_local",    local_path = ... }   -- added in Task 14
 --   { outcome = "passthrough" }      -- text/empty clipboard, native paste runs
 --   { outcome = "missing_pngpaste" }
 --   { outcome = "probe_failed",      err = ... }
