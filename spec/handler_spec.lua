@@ -123,3 +123,45 @@ describe("handler.handle_paste (non-ssh image fallback)", function()
     assert.are.equal("error", toast_level)
   end)
 end)
+
+describe("handler.handle_paste (error branches)", function()
+  local saved
+  after_each(function() if saved then restore(saved); saved = nil end end)
+
+  it("missing_pngpaste -> outcome and toast", function()
+    local toasts = {}
+    saved = stub_all({
+      probe = function() return { kind = "missing_pngpaste" } end,
+      toast = function(_, msg) table.insert(toasts, msg) end,
+    })
+    local r = handler.handle_paste({}, {}, {})
+    assert.are.equal("missing_pngpaste", r.outcome)
+    assert.is_truthy(toasts[1]:match("pngpaste"))
+  end)
+
+  it("scp failure -> outcome=ssh_fail, error preserved", function()
+    local toasts = {}
+    saved = stub_all({
+      probe = function() return { kind = "image", local_path = "/tmp/x.png" } end,
+      detect = function() return { destination = "h", replay_flags = {} } end,
+      upload = function() return nil, "Network is unreachable" end,
+      toast = function(_, msg) table.insert(toasts, msg) end,
+    })
+    local r = handler.handle_paste({}, {}, {})
+    assert.are.equal("ssh_fail", r.outcome)
+    assert.are.equal("Network is unreachable", r.err)
+    assert.is_truthy(toasts[1]:match("Network is unreachable"))
+  end)
+
+  it("probe_failed -> outcome and toast", function()
+    local toasts = {}
+    saved = stub_all({
+      probe = function() return { kind = "probe_failed", stderr = "execution error" } end,
+      toast = function(_, msg) table.insert(toasts, msg) end,
+    })
+    local r = handler.handle_paste({}, {}, {})
+    assert.are.equal("probe_failed", r.outcome)
+    assert.are.equal("execution error", r.err)
+    assert.is_truthy(toasts[1]:match("剪贴板") or toasts[1]:match("probe"))
+  end)
+end)
