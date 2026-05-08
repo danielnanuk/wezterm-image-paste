@@ -40,8 +40,19 @@ function M.handle_paste(window, pane, opts)
 
   local target = ssh_target.detect_from_pane(pane)
   if not target then
-    -- non-SSH branch handled in Task 14
-    return { outcome = "non_ssh_image" }
+    local fallback_dir = opts.local_fallback_dir or DEFAULTS.local_fallback_dir
+    local stamp = os.date("!%Y%m%dT%H%M%SZ")
+    local local_path = fallback_dir .. "/wezterm-paste-" .. stamp .. ".png"
+    -- Ensure dir exists. mkdir -p is safe and idempotent.
+    require("wezterm-image-paste.run").exec({ "mkdir", "-p", fallback_dir })
+    local r = clipboard.save_to(local_path)
+    if not r.success then
+      notify.toast(window, "✗ 保存到本地失败: " .. (r.stderr or ""), "error")
+      return { outcome = "ssh_fail", err = r.stderr }
+    end
+    clipboard.write(local_path)
+    notify.toast(window, "📎 非 SSH 会话,图片已存到 " .. fallback_dir .. ",路径已复制", "info")
+    return { outcome = "fallback_local", local_path = local_path }
   end
 
   local remote_path, err = uploader.run(target, probe.local_path, remote_dir)
