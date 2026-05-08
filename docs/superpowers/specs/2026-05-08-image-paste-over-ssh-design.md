@@ -374,7 +374,7 @@ is needed for the typical user.
   - `ssh -tt host htop` → `{destination="host", replay_flags=["-tt"]}`
   - `ssh -- host` → `{destination="host", replay_flags=[]}`
   - Negative cases: `ssh-add`, `sshfs`, `ssh -V`, no ssh in tree → returns `nil`.
-- `escape_remote_path(s)` rejects path separators that break shell
+- `validate_remote_path(s)` rejects path separators that break shell
   quoting; ensures generated filenames are safe.
 - `parse_ssh_G_output(text) → {host, port, user, identity}` handles
   multiline `key value` output and missing fields.

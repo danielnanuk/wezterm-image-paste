@@ -87,11 +87,13 @@ function M.parse_ssh_argv(argv)
   return nil  -- never found a destination
 end
 
--- escape_remote_path validates that a remote path contains only
--- characters we generate ourselves. We never need exotic paths;
--- rejecting anything fancy is safer than escaping.
-function M.escape_remote_path(s)
+-- validate_remote_path checks that a remote path contains only the
+-- characters we ourselves generate. It does NOT escape; it only
+-- accepts or rejects. We never need exotic paths, so rejecting anything
+-- fancy is safer than escaping.
+function M.validate_remote_path(s)
   if type(s) ~= "string" then return nil, "not a string" end
+  -- Lua %w is [A-Za-z0-9] only (ASCII, no underscore). We add _ explicitly.
   if not s:match("^[%w/_%-%.]+$") then
     return nil, "remote path contains disallowed characters"
   end

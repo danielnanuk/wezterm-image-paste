@@ -19,7 +19,7 @@ All paths are relative to the repository root (`/home/daniel/pTerminal`).
 | Path | Responsibility |
 |------|---------------|
 | `wezterm-image-paste/init.lua` | Entry. Exports `apply_to_config(config, opts?)`. Wires the Cmd+V keybinding to the orchestrator. Holds defaults table. |
-| `wezterm-image-paste/parse.lua` | **Pure functions only.** `parse_ssh_argv(argv)` (returns `{destination, replay_flags}`), `hash_filename(path)` (returns 8-char hex), `escape_remote_path(s)` (validates safe chars). |
+| `wezterm-image-paste/parse.lua` | **Pure functions only.** `parse_ssh_argv(argv)` (returns `{destination, replay_flags}`), `hash_filename(path)` (returns 8-char hex), `validate_remote_path(s)` (validates safe chars). |
 | `wezterm-image-paste/run.lua` | Thin wrapper around `wezterm.run_child_process`. Modules use this so tests can inject a fake. Single function: `run.exec(argv) → {success, exit_code, stdout, stderr}`. |
 | `wezterm-image-paste/clipboard.lua` | `clipboard.probe()` (osascript + pngpaste), `clipboard.write(text)` (pbcopy without newline), `clipboard.save_to(local_path)` (pngpaste to a chosen path). |
 | `wezterm-image-paste/ssh_target.lua` | `ssh_target.detect(pane)` — walks pane's foreground process tree, finds nearest `ssh` descendant, calls `parse.parse_ssh_argv`. Returns `{destination, replay_flags}` or `nil`. |
@@ -31,7 +31,7 @@ All paths are relative to the repository root (`/home/daniel/pTerminal`).
 
 | Path | What it tests |
 |------|---------------|
-| `spec/parse_spec.lua` | All branches of `parse.parse_ssh_argv`, `hash_filename`, `escape_remote_path`. No subprocess. |
+| `spec/parse_spec.lua` | All branches of `parse.parse_ssh_argv`, `hash_filename`, `validate_remote_path`. No subprocess. |
 | `spec/clipboard_spec.lua` | `clipboard.probe` and `clipboard.write` with mocked `run.exec`. |
 | `spec/ssh_target_spec.lua` | `ssh_target.detect` with fake `pane:get_foreground_process_info()` shapes. |
 | `spec/uploader_spec.lua` | `uploader.run` with mocked `run.exec`. Asserts exact argv passed to `ssh`/`scp`. |
@@ -613,7 +613,7 @@ git commit -m "feat(parse): handle -oKEY=VALUE / stacked booleans / -vvv / -tt"
 
 ---
 
-## Task 6: `parse.escape_remote_path` — defensive filename validator
+## Task 6: `parse.validate_remote_path` — defensive filename validator
 
 **Files:**
 - Modify: `wezterm-image-paste/parse.lua`
@@ -624,9 +624,9 @@ git commit -m "feat(parse): handle -oKEY=VALUE / stacked booleans / -vvv / -tt"
 Append to `spec/parse_spec.lua`:
 
 ```lua
-describe("parse.escape_remote_path", function()
+describe("parse.validate_remote_path", function()
   it("accepts our own generated names", function()
-    local r, err = parse.escape_remote_path("/tmp/wezterm-paste-a3f29c1d.png")
+    local r, err = parse.validate_remote_path("/tmp/wezterm-paste-a3f29c1d.png")
     assert.are.equal("/tmp/wezterm-paste-a3f29c1d.png", r)
     assert.is_nil(err)
   end)
@@ -639,7 +639,7 @@ describe("parse.escape_remote_path", function()
       "/tmp/foo|cat",
       "/tmp/foo\nbar",
     }) do
-      local r, err = parse.escape_remote_path(bad)
+      local r, err = parse.validate_remote_path(bad)
       assert.is_nil(r, "should reject: " .. bad)
       assert.is_string(err)
     end
@@ -653,16 +653,18 @@ end)
 busted spec/parse_spec.lua
 ```
 
-- [ ] **Step 3: Implement `escape_remote_path`**
+- [ ] **Step 3: Implement `validate_remote_path`**
 
 Append to `wezterm-image-paste/parse.lua` (above `return M`):
 
 ```lua
--- escape_remote_path validates that a remote path contains only
--- characters we generate ourselves. We never need exotic paths;
--- rejecting anything fancy is safer than escaping.
-function M.escape_remote_path(s)
+-- validate_remote_path checks that a remote path contains only the
+-- characters we ourselves generate. It does NOT escape; it only
+-- accepts or rejects. We never need exotic paths, so rejecting anything
+-- fancy is safer than escaping.
+function M.validate_remote_path(s)
   if type(s) ~= "string" then return nil, "not a string" end
+  -- Lua %w is [A-Za-z0-9] only (ASCII, no underscore). We add _ explicitly.
   if not s:match("^[%w/_%-%.]+$") then
     return nil, "remote path contains disallowed characters"
   end
@@ -680,7 +682,7 @@ busted spec/parse_spec.lua
 
 ```bash
 git add wezterm-image-paste/parse.lua spec/parse_spec.lua
-git commit -m "feat(parse): escape_remote_path rejects shell metacharacters"
+git commit -m "feat(parse): validate_remote_path rejects shell metacharacters"
 ```
 
 ---
@@ -1242,7 +1244,7 @@ function M.run(target, local_path, remote_dir)
   if not hash then return nil, "hash failed: " .. tostring(err) end
 
   local remote_path = remote_dir .. "/wezterm-paste-" .. hash .. ".png"
-  local validated, perr = parse.escape_remote_path(remote_path)
+  local validated, perr = parse.validate_remote_path(remote_path)
   if not validated then return nil, "remote path rejected: " .. tostring(perr) end
 
   -- 1) precheck
