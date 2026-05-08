@@ -1,0 +1,5 @@
+.luarocks/
+lua_modules/
+*.rock
+*.tar.gz
+.DS_Store
